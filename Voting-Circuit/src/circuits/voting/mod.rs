@@ -1,6 +1,5 @@
-pub mod test;
-pub mod poseidon;
 pub mod voting_circuit;
+pub mod merkle_tree;
 
 use ark_crypto_primitives::sponge::Absorb;
 use ark_ec::CurveGroup;
