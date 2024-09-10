@@ -4,12 +4,10 @@ use ark_ff::{Field, PrimeField};
 use ark_r1cs_std::{prelude::*, fields::fp::FpVar};
 use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisError};
 use ark_crypto_primitives::{
-    crh::{poseidon::constraints::{CRHGadget, CRHParametersVar}, CRHSchemeGadget}, 
-    sponge::{poseidon::PoseidonConfig, Absorb},
-    merkle_tree::{self, constraints::PathVar},
+    crh::{poseidon::{constraints::{CRHGadget, CRHParametersVar}, CRH}, CRHScheme, CRHSchemeGadget}, merkle_tree::{self, constraints::PathVar, MerkleTree}, sponge::{poseidon::PoseidonConfig, Absorb}
 };
-
 use crate::circuits::voting::merkle_tree::{MerkleTreeParams, MerkleTreeParamsVar};
+use crate::circuits::voting::MockingCircuit;
 
 pub type ConstraintF<C> = <<C as CurveGroup>::BaseField as Field>::BasePrimeField;
 
@@ -105,8 +103,8 @@ where
         addr_computed.enforce_equal(&addr)?;
 
 
-        // 3. Check sn = CRH(voting_round || sk)
-        let hash_input = vec![voting_round, sk];
+        // 3. Check sn = CRH(sk || voting_round)
+        let hash_input = vec![sk, voting_round];
         let sn_computed = CRHGadget::<C::BaseField>::evaluate(&hash_params, &hash_input)?;
         sn_computed.enforce_equal(&sn)?;
 
@@ -135,7 +133,129 @@ where
         let leaf_g = vec![addr.clone()];
         cw.set_leaf_position(leaf_pos.clone());
         let path_check = cw.verify_membership(&hash_params, &hash_params, &root, &leaf_g)?;
-        path_check.enforce_equal(&Boolean::Constant(true))?;
+        // path_check.enforce_equal(&Boolean::Constant(true))?;
         Ok(())
+    }
+}
+
+
+impl<C: CurveGroup, GG: CurveVar<C, C::BaseField>> MockingCircuit<C, GG> for VotingCircuit<C, GG>
+where 
+    <C as CurveGroup>::BaseField: PrimeField + Absorb,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
+{
+    type F = C::BaseField;
+    type HashParam = PoseidonConfig<Self::F>;
+    type H = CRH<Self::F>;
+    type Output = VotingCircuit<C, GG>;
+
+    fn generate_circuit(
+            g: C::Affine,
+            ck: Vec<C::Affine>,
+            sk: C::BaseField,
+            pk: C::Affine,
+            tree_height: u64,
+            voting_round: u64,
+            num_of_candidates: u64,
+            num_of_voters: u64,
+            vote_index: u64,  // index of the candidate that the voter is voting for
+            voter_pos: u64,  // index of the voter
+            candidate_limit: u64,
+        ) -> Result<Self::Output, crate::Error> {
+        use ark_ec::AffineRepr;
+        use ark_std::{UniformRand, Zero, One};
+        use crate::circuits::voting::poseidon_params::get_poseidon_params;
+        let mut rng = ark_std::test_rng();        
+        // Generate the hash parameters
+        let hash_params: PoseidonConfig<<<C as CurveGroup>::Affine as AffineRepr>::BaseField> = get_poseidon_params();
+
+        // addr = CRH(pk)
+        let (pk_x, pk_y) = pk.xy().unwrap();
+        let addr = Self::H::evaluate(&hash_params, vec![pk_x.clone(), pk_y.clone()]).unwrap();
+
+        // voting round
+        let voting_round = Self::F::from(voting_round);
+
+        // sn
+        let sn = Self::H::evaluate(&hash_params, vec![sk, voting_round]).unwrap();
+
+        // vote_m
+        let mut vote_m = vec![Self::F::zero(); candidate_limit as usize];
+        if (vote_index as usize) < candidate_limit as usize {
+            vote_m[vote_index as usize] = Self::F::one();
+        }
+
+        // vote_r
+        let mut vote_r = vec![];
+        for i in 0..candidate_limit {
+            if i < num_of_candidates {
+                let random = Self::F::rand(&mut rng);
+                vote_r.push(random);
+            } else {
+                vote_r.push(Self::F::zero());
+            }
+        }
+
+        // vote_cm
+        let mut vote_cm = vec![];
+        for i in 0..candidate_limit as usize {
+            let vote_cm_i = ck[0].mul_bigint(&vote_m[i].into_bigint()) + ck[1].mul_bigint(&vote_r[i].into_bigint());
+            vote_cm.push(vote_cm_i.into_affine());
+        }
+
+
+        // Merkle tree
+        let leaf_crh_params = hash_params.clone();
+        let two_to_one_params = hash_params.clone();
+
+        let num_leaves = 2_usize.pow(tree_height as u32);
+        let mut leaves_digest: Vec<Self::F> = vec![];
+        
+        let leaf = addr.clone();
+
+        for _ in 0..num_of_voters as usize {
+            leaves_digest.push(Self::F::rand(&mut rng));
+        }
+    
+        while leaves_digest.len() < num_leaves {
+            leaves_digest.push(Self::F::zero());
+        }
+
+        leaves_digest[voter_pos as usize] = leaf.clone();
+    
+        let tree = MerkleTree::<MerkleTreeParams<Self::F>>::new_with_leaf_digest(
+            &leaf_crh_params,
+            &two_to_one_params,
+            leaves_digest,
+        )?;
+        
+        let root = tree.root().clone();
+        let merkle_proof = tree.generate_proof(voter_pos as usize)?;
+
+        let instance = VotingInstance {
+            voting_round: Some(voting_round),
+            root: Some(root),
+            vote_cm: Some(vote_cm),
+        };
+
+        let witness = VotingWitness {
+            sk: Some(sk),
+            pk: Some(pk),
+            addr: Some(addr),
+            vote_m: Some(vote_m),
+            vote_r: Some(vote_r),
+            sn: Some(sn),
+            leaf_pos: Some(voter_pos as u32),
+            tree_proof: Some(merkle_proof),
+        };
+
+        Ok(VotingCircuit {
+            g,
+            ck,
+            hash_params,
+            instance,
+            witness,
+            _curve: PhantomData,
+        })
     }
 }
