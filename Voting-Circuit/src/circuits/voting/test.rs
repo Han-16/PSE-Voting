@@ -15,7 +15,6 @@ mod test {
     type GG = ark_ed_on_bn254::constraints::EdwardsVar;
 
     type F = ark_bn254::Fr;
-    type Fq = ark_bn254::Fq;
 
     #[test]
     fn test_poseidon_hash() {
@@ -57,7 +56,7 @@ mod test {
         
         let g = get_g().unwrap();
         let ck = get_ck().unwrap();
-        let user = get_user().unwrap();
+        let user = get_user(0).unwrap();
         let parsed_user = parse_user(&user).unwrap();
         let sk = parsed_user.sk;
         let pk = parsed_user.pk;
@@ -73,4 +72,3 @@ mod test {
         assert!(cs.is_satisfied().unwrap());
     }
 }
-
