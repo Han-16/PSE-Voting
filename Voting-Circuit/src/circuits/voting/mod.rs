@@ -1,5 +1,8 @@
 pub mod voting_circuit;
 pub mod merkle_tree;
+pub mod test;
+pub mod poseidon_params;
+pub mod parser;
 
 use ark_crypto_primitives::sponge::Absorb;
 use ark_ec::CurveGroup;
@@ -20,10 +23,17 @@ where
     type H;
     type Output;
 
-    fn generate_circuit<R: ark_std::rand::Rng>(
-        hash_param: Self::HashParam,
+    fn generate_circuit(
+        g: C::Affine,
+        ck: Vec::<C::Affine>,
+        sk: C::BaseField,
+        pk: C::Affine,
         tree_height: u64,
         voting_round: u64,
-        rng: &mut R,
+        num_of_candidates: u64,
+        num_of_voters: u64,
+        vote_index: u64,
+        voter_pos: u64,
+        candidate_limit: u64,
     ) -> Result<Self::Output, Error>;
 }
