@@ -47,9 +47,9 @@ pub fn get_users() -> Result<Vec<User>> {
     Ok(mock_data.Users)
 }
 
-pub fn get_user() -> Result<User> {
+pub fn get_user(index: usize) -> Result<User> {
     let users = get_users()?;
-    Ok(users[0].clone())
+    Ok(users[index].clone())
 }
 
 pub fn get_g() -> Result<<C as CurveGroup>::Affine> {
