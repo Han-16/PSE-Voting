@@ -45,12 +45,12 @@ mod test {
     #[test]
     fn test_voting_constraints() {
         use ark_relations::r1cs::ConstraintSynthesizer;
-        let tree_height = 2;
+        let tree_height = 4;
         let voting_round = 1;
         let num_of_candidates = 2;
-        let num_of_voters = 4;
+        let num_of_voters = 12;
         let vote_index = 1;
-        let voter_pos = 0;
+        let voter_pos = 10;
         let candidate_limit = 10;
         
         

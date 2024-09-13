@@ -6,8 +6,10 @@ use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystemRef, SynthesisE
 use ark_crypto_primitives::{
     crh::{poseidon::{constraints::{CRHGadget, CRHParametersVar}, CRH}, CRHScheme, CRHSchemeGadget}, merkle_tree::{self, constraints::PathVar, MerkleTree}, sponge::{poseidon::PoseidonConfig, Absorb}
 };
+use ark_std::Zero;
 use crate::circuits::voting::merkle_tree::{MerkleTreeParams, MerkleTreeParamsVar};
 use crate::circuits::voting::MockingCircuit;
+use crate::circuits::voting::poseidon_params::get_poseidon_params;
 
 pub type ConstraintF<C> = <<C as CurveGroup>::BaseField as Field>::BasePrimeField;
 
@@ -49,6 +51,57 @@ where
     pub witness: VotingWitness<C>,
     _curve: PhantomData<GG>,
 }
+
+impl<C, GG> VotingCircuit<C, GG>
+where 
+    C: CurveGroup,
+    GG: CurveVar<C, C::BaseField>,
+    <C as CurveGroup>::BaseField: PrimeField + Absorb,
+    for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
+{
+    pub fn empty() -> Self {
+        Self {
+            g: C::Affine::default(),
+            ck: vec![],
+            hash_params: get_poseidon_params(),
+            instance: VotingInstance {
+                voting_round: Some(C::BaseField::zero()),
+                root: Some(C::BaseField::zero()),
+                vote_cm: Some(vec![]),
+            },
+            witness: VotingWitness {
+                sk: Some(C::BaseField::zero()),
+                pk: Some(C::Affine::default()),
+                addr: Some(C::BaseField::zero()),
+                vote_m: Some(vec![]),
+                vote_r: Some(vec![]),
+                sn: Some(C::BaseField::zero()),
+                leaf_pos: Some(0),
+                tree_proof: Some(merkle_tree::Path::default()),
+            },
+            _curve: PhantomData,
+        }
+    }
+
+    pub fn new(
+        g: C::Affine,
+        ck: Vec<C::Affine>,
+        hash_params: PoseidonConfig<C::BaseField>,
+        instance: VotingInstance<C>,
+        witness: VotingWitness<C>,
+    ) -> Self {
+        Self {
+            g,
+            ck,
+            hash_params,
+            instance,
+            witness,
+            _curve: PhantomData,
+        }
+    }
+}
+
+
 
 impl<C, GG> ConstraintSynthesizer<C::BaseField> for VotingCircuit<C, GG>
 where 
@@ -222,7 +275,10 @@ where
         }
 
         leaves_digest[voter_pos as usize] = leaf.clone();
-    
+        println!("addr: {:?}", addr.to_string());
+        for i in leaves_digest.iter() {
+            println!("leaves_digest: {:?}", i.to_string());
+        }
         let tree = MerkleTree::<MerkleTreeParams<Self::F>>::new_with_leaf_digest(
             &leaf_crh_params,
             &two_to_one_params,
@@ -231,6 +287,11 @@ where
         
         let root = tree.root().clone();
         let merkle_proof = tree.generate_proof(voter_pos as usize)?;
+
+        println!("root: {:?}", root.to_string());
+        for i in merkle_proof.auth_path.iter() {
+            println!("auth_path: {:?}", i.to_string());
+        }
 
         let instance = VotingInstance {
             voting_round: Some(voting_round),
@@ -249,13 +310,6 @@ where
             tree_proof: Some(merkle_proof),
         };
 
-        Ok(VotingCircuit {
-            g,
-            ck,
-            hash_params,
-            instance,
-            witness,
-            _curve: PhantomData,
-        })
+        Ok(Self::new(g, ck, hash_params, instance, witness))
     }
 }
