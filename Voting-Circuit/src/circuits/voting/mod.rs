@@ -3,6 +3,8 @@ pub mod merkle_tree;
 pub mod test;
 pub mod poseidon_params;
 pub mod parser;
+pub mod prover;
+pub mod setup;
 
 use ark_crypto_primitives::sponge::Absorb;
 use ark_ec::CurveGroup;
