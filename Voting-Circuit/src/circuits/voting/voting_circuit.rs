@@ -186,7 +186,7 @@ where
         let leaf_g = vec![addr.clone()];
         cw.set_leaf_position(leaf_pos.clone());
         let path_check = cw.verify_membership(&hash_params, &hash_params, &root, &leaf_g)?;
-        // path_check.enforce_equal(&Boolean::Constant(true))?;
+        path_check.enforce_equal(&Boolean::Constant(true))?;
         Ok(())
     }
 }
@@ -216,8 +216,9 @@ where
             candidate_limit: u64,
         ) -> Result<Self::Output, crate::Error> {
         use ark_ec::AffineRepr;
+        use ark_std::borrow::Borrow;
         use ark_std::{UniformRand, Zero, One};
-        use crate::circuits::voting::poseidon_params::get_poseidon_params;
+        use ark_serialize::CanonicalSerialize;
         let mut rng = ark_std::test_rng();        
         // Generate the hash parameters
         let hash_params: PoseidonConfig<<<C as CurveGroup>::Affine as AffineRepr>::BaseField> = get_poseidon_params();
@@ -262,36 +263,28 @@ where
         let two_to_one_params = hash_params.clone();
 
         let num_leaves = 2_usize.pow(tree_height as u32);
-        let mut leaves_digest: Vec<Self::F> = vec![];
+        let mut leaves = vec![];
         
         let leaf = addr.clone();
 
         for _ in 0..num_of_voters as usize {
-            leaves_digest.push(Self::F::rand(&mut rng));
+            leaves.push([Self::F::rand(&mut rng)]);
         }
     
-        while leaves_digest.len() < num_leaves {
-            leaves_digest.push(Self::F::zero());
+        while leaves.len() < num_leaves {
+            leaves.push([Self::F::zero()]);
         }
 
-        leaves_digest[voter_pos as usize] = leaf.clone();
-        println!("addr: {:?}", addr.to_string());
-        for i in leaves_digest.iter() {
-            println!("leaves_digest: {:?}", i.to_string());
-        }
-        let tree = MerkleTree::<MerkleTreeParams<Self::F>>::new_with_leaf_digest(
+        leaves[voter_pos as usize] = [leaf.clone()];
+
+        let tree = MerkleTree::<MerkleTreeParams<Self::F>>::new(
             &leaf_crh_params,
             &two_to_one_params,
-            leaves_digest,
+            leaves,
         )?;
         
         let root = tree.root().clone();
         let merkle_proof = tree.generate_proof(voter_pos as usize)?;
-
-        println!("root: {:?}", root.to_string());
-        for i in merkle_proof.auth_path.iter() {
-            println!("auth_path: {:?}", i.to_string());
-        }
 
         let instance = VotingInstance {
             voting_round: Some(voting_round),
