@@ -216,9 +216,7 @@ where
             candidate_limit: u64,
         ) -> Result<Self::Output, crate::Error> {
         use ark_ec::AffineRepr;
-        use ark_std::borrow::Borrow;
-        use ark_std::{UniformRand, Zero, One};
-        use ark_serialize::CanonicalSerialize;
+        use ark_std::{UniformRand, One};
         let mut rng = ark_std::test_rng();        
         // Generate the hash parameters
         let hash_params: PoseidonConfig<<<C as CurveGroup>::Affine as AffineRepr>::BaseField> = get_poseidon_params();
