@@ -1,0 +1,22 @@
+Voting-Circuit/target
+
+*.DS_Store
+*.dat
+
+/Voting-Contract/node_modules
+/Voting-Contract/.env
+
+# Hardhat files
+/Voting-Contract/cache
+/Voting-Contract/artifacts
+
+# TypeChain files
+/Voting-Contract/typechain
+/Voting-Contract/typechain-types
+
+# solidity-coverage files
+/Voting-Contract/coverage
+/Voting-Contract/coverage.json
+
+# Hardhat Ignition default folder for deployments against a local node
+/Voting-Contractignition/deployments/chain-31337
