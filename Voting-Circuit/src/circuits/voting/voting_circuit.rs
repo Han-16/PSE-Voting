@@ -59,7 +59,7 @@ where
     <C as CurveGroup>::BaseField: PrimeField + Absorb,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
-    pub fn empty() -> Self {
+    pub fn empty(candidate_limit: usize) -> Self {
         Self {
             g: C::Affine::default(),
             ck: vec![],
@@ -67,14 +67,14 @@ where
             instance: VotingInstance {
                 voting_round: Some(C::BaseField::zero()),
                 root: Some(C::BaseField::zero()),
-                vote_cm: Some(vec![]),
+                vote_cm: Some(vec![C::Affine::default(); candidate_limit]),
             },
             witness: VotingWitness {
                 sk: Some(C::BaseField::zero()),
                 pk: Some(C::Affine::default()),
                 addr: Some(C::BaseField::zero()),
-                vote_m: Some(vec![]),
-                vote_r: Some(vec![]),
+                vote_m: Some(vec![C::BaseField::zero(); candidate_limit]),
+                vote_r: Some(vec![C::BaseField::zero(); candidate_limit]),
                 sn: Some(C::BaseField::zero()),
                 leaf_pos: Some(0),
                 tree_proof: Some(merkle_tree::Path::default()),
@@ -217,7 +217,12 @@ where
         ) -> Result<Self::Output, crate::Error> {
         use ark_ec::AffineRepr;
         use ark_std::{UniformRand, One};
-        let mut rng = ark_std::test_rng();        
+        use ark_std::rand::RngCore;
+        use ark_std::rand::SeedableRng;
+        use ark_std::test_rng;
+
+        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
+
         // Generate the hash parameters
         let hash_params: PoseidonConfig<<<C as CurveGroup>::Affine as AffineRepr>::BaseField> = get_poseidon_params();
 
