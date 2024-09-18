@@ -42,6 +42,10 @@ fn from_base_field_to_affine(x: &str, y: &str) -> Result<<C as CurveGroup>::Affi
     Ok(<<C as CurveGroup>::Affine>::new(x, y))
 }
 
+pub fn from_str_to_base_field(x: &str) -> <C as CurveGroup>::BaseField {
+    <<C as CurveGroup>::BaseField>::from_str(x).unwrap()
+}
+
 pub fn get_users() -> Result<Vec<User>> {
     let mock_data = read_mock_data()?;
     Ok(mock_data.Users)

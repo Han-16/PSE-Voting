@@ -5,6 +5,7 @@ pub mod poseidon_params;
 pub mod parser;
 pub mod prover;
 pub mod setup;
+pub mod key_utils;
 
 use ark_crypto_primitives::sponge::Absorb;
 use ark_ec::CurveGroup;
