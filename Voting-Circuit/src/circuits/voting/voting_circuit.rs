@@ -59,30 +59,6 @@ where
     <C as CurveGroup>::BaseField: PrimeField + Absorb,
     for<'a> &'a GG: GroupOpsBounds<'a, C, GG>,
 {
-    pub fn empty(candidate_limit: usize) -> Self {
-        Self {
-            g: C::Affine::default(),
-            ck: vec![],
-            hash_params: get_poseidon_params(),
-            instance: VotingInstance {
-                voting_round: Some(C::BaseField::zero()),
-                root: Some(C::BaseField::zero()),
-                vote_cm: Some(vec![C::Affine::default(); candidate_limit]),
-            },
-            witness: VotingWitness {
-                sk: Some(C::BaseField::zero()),
-                pk: Some(C::Affine::default()),
-                addr: Some(C::BaseField::zero()),
-                vote_m: Some(vec![C::BaseField::zero(); candidate_limit]),
-                vote_r: Some(vec![C::BaseField::zero(); candidate_limit]),
-                sn: Some(C::BaseField::zero()),
-                leaf_pos: Some(0),
-                tree_proof: Some(merkle_tree::Path::default()),
-            },
-            _curve: PhantomData,
-        }
-    }
-
     pub fn new(
         g: C::Affine,
         ck: Vec<C::Affine>,
@@ -220,6 +196,11 @@ where
         use ark_std::rand::RngCore;
         use ark_std::rand::SeedableRng;
         use ark_std::test_rng;
+        use std::str::FromStr;
+        use ark_ff::BigInteger256;
+        use ark_ff::PrimeField;
+        use num_bigint::BigUint;
+        use crate::circuits::voting::parser::*;
 
         let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
 
@@ -267,18 +248,18 @@ where
 
         let num_leaves = 2_usize.pow(tree_height as u32);
         let mut leaves = vec![];
-        
-        let leaf = addr.clone();
 
-        for _ in 0..num_of_voters as usize {
-            leaves.push([Self::F::rand(&mut rng)]);
+        for i in 0..num_of_voters as usize {
+            let user_addr_str: String = get_user(i).unwrap().addr;
+            let user_addr_bigint = BigUint::from_str(&user_addr_str).unwrap();
+            let user_addr_bytes = user_addr_bigint.to_bytes_le();
+            let user_addr = Self::F::from_le_bytes_mod_order(&user_addr_bytes);
+            leaves.push([user_addr]);
         }
     
         while leaves.len() < num_leaves {
             leaves.push([Self::F::zero()]);
         }
-
-        leaves[voter_pos as usize] = [leaf.clone()];
 
         let tree = MerkleTree::<MerkleTreeParams<Self::F>>::new(
             &leaf_crh_params,
@@ -287,6 +268,7 @@ where
         )?;
         
         let root = tree.root().clone();
+        println!("Root: {:?}", root.to_string());
         let merkle_proof = tree.generate_proof(voter_pos as usize)?;
 
         let instance = VotingInstance {
