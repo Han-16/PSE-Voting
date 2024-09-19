@@ -2,6 +2,7 @@
 mod test {
     use ark_bn254::Bn254;
     use ark_ec::AffineRepr;
+    use ark_ff::Field;
     use crate::circuits::voting::{voting_circuit::VotingCircuit, MockingCircuit};
     use ark_relations::r1cs::ConstraintSystem;
     use ark_groth16::Groth16;
@@ -20,12 +21,12 @@ mod test {
 
     fn make_mocking_circuit() -> VotingCircuit<C, GG> {
         let tree_height = 10;       // constant
-        let voting_round = 2;       // mutable
-        let num_of_candidates = 10; // mutable
-        let num_of_voters = 3;     // mutable
-        let vote_index = 2;         // mutable
-        let voter_pos = 0;          // mutable (Mock data에 addr이 0 ~ 9)까지 준비되어있음. num_of_voters보다 작아야함
-        let candidate_limit = 10;   // constant
+        let voting_round = 1;       // mutable
+        let num_of_candidates = 2; // mutable
+        let num_of_voters = 2;     // mutable
+        let vote_index = 0;         // mutable  (num_of_candidates보다 작아야함)
+        let voter_pos = 1;          // mutable (Mock data에 addr이 0 ~ 9)까지 준비되어있음. num_of_voters보다 작아야함
+        let candidate_limit = 2;   // constant
         
         
         let g = get_g().unwrap();
@@ -73,6 +74,7 @@ mod test {
         println!("vk.gamma_g2: {:?}\n", vk.gamma_g2);
         println!("vk.delta_g2: {:?}\n", vk.delta_g2);
         println!("vk.gamma_abc_g1: {:?}\n", vk.gamma_abc_g1);
+        println!("len(vk.gamma_abc_g1): {:?}\n", vk.gamma_abc_g1.len());
     
         let pvk = Groth16::<Bn254>::process_vk(&vk).unwrap();
         let mut image: Vec<_> = vec![];
@@ -83,9 +85,18 @@ mod test {
         ]);
 
         for i in test_circuit.instance.vote_cm.clone().unwrap() {
-            image.push(*i.clone().x().unwrap());
-            image.push(*i.clone().y().unwrap());
+            if i.is_zero() {
+                let zero = F::ZERO;
+                image.push(zero); // TODO: num_of_candidate가 candidate_limit보다 작을 경우, 에러가 발생함.
+                image.push(zero);
+            }
+            else {
+                image.push(*i.clone().x().unwrap());
+                image.push(*i.clone().y().unwrap());
+            }
         }
+
+        println!("image: {:?}", image);
         
         let mut image_for_sc = vec![];
         for i in image.clone().iter() {
@@ -100,3 +111,27 @@ mod test {
         assert!(Groth16::<Bn254>::verify_with_processed_vk(&pvk, &image, &proof).unwrap());
     }   
 }
+
+
+
+
+
+// 0번에게 투표
+// [
+//     [
+//         [
+//             20829713434596791778325357485089886747514778316705676669650462347841700928402, 16211914032676110342504483473133854906048312474481567465777862980221140582806
+//         ], 
+//         [
+//             21751743789253487890573857635505293176330901016696147827392093312092203356275, 21649100111684828425067547456894035102243944074454781695410098950567605692917
+//         ]
+//     ],
+//     [
+//         [
+//             11423542327632730572517626166992096298549771866687099793864554437116717745098, 11855164744168886613412067862405605895865801597166913884599362920502551505223
+//         ],
+//         [
+//             3430020931225080008428116447967980394610517623332496955004514443233458783286, 16576259033801907607559578885637300221814760878233642826153650819230502050183
+//         ]
+//     ]
+// ]

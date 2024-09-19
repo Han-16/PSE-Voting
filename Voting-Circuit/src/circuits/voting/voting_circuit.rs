@@ -7,6 +7,7 @@ use ark_crypto_primitives::{
     crh::{poseidon::{constraints::{CRHGadget, CRHParametersVar}, CRH}, CRHScheme, CRHSchemeGadget}, merkle_tree::{self, constraints::PathVar, MerkleTree}, sponge::{poseidon::PoseidonConfig, Absorb}
 };
 use ark_std::Zero;
+use rand::thread_rng;
 use crate::circuits::voting::merkle_tree::{MerkleTreeParams, MerkleTreeParamsVar};
 use crate::circuits::voting::MockingCircuit;
 use crate::circuits::voting::poseidon_params::get_poseidon_params;
@@ -197,12 +198,12 @@ where
         use ark_std::rand::SeedableRng;
         use ark_std::test_rng;
         use std::str::FromStr;
-        use ark_ff::BigInteger256;
-        use ark_ff::PrimeField;
         use num_bigint::BigUint;
         use crate::circuits::voting::parser::*;
 
-        let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
+        // let mut rng = ark_std::rand::rngs::StdRng::seed_from_u64(test_rng().next_u64());
+        let mut rng = thread_rng();
+        println!("ck: {:?}", ck.iter().map(|x| x.to_string()).collect::<Vec<String>>());
 
         // Generate the hash parameters
         let hash_params: PoseidonConfig<<<C as CurveGroup>::Affine as AffineRepr>::BaseField> = get_poseidon_params();
@@ -216,12 +217,16 @@ where
 
         // sn
         let sn = Self::H::evaluate(&hash_params, vec![sk, voting_round]).unwrap();
+        println!("sn: {:?}", sn.to_string());
 
         // vote_m
         let mut vote_m = vec![Self::F::zero(); candidate_limit as usize];
         if (vote_index as usize) < candidate_limit as usize {
             vote_m[vote_index as usize] = Self::F::one();
         }
+
+        let vote_m_str = vote_m.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        println!("vote_m: {:?}", vote_m_str);
 
         // vote_r
         let mut vote_r = vec![];
@@ -234,11 +239,28 @@ where
             }
         }
 
-        // vote_cm
+        // g^r
+        let mut g_r = vec![];
+        for i in 0..candidate_limit as usize {
+            let g_r_i = g.mul_bigint(&vote_r[i].into_bigint());
+            g_r.push(g_r_i.into_affine());
+        }
+
+        let g_r_str = g_r.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+
+        // vote_cm (g^mh^r)
         let mut vote_cm = vec![];
         for i in 0..candidate_limit as usize {
             let vote_cm_i = ck[0].mul_bigint(&vote_m[i].into_bigint()) + ck[1].mul_bigint(&vote_r[i].into_bigint());
             vote_cm.push(vote_cm_i.into_affine());
+        }
+
+        let vote_cm_str = vote_cm.iter().map(|x| x.to_string()).collect::<Vec<String>>();
+        
+        // print g^r_i, vote_cm_i
+        for i in 0..candidate_limit as usize {
+            println!("g^r_{}: {:?}", i, g_r_str[i]);
+            println!("g^mh^r_{}: {:?}\n", i, vote_cm_str[i]);
         }
 
 
@@ -291,3 +313,6 @@ where
         Ok(Self::new(g, ck, hash_params, instance, witness))
     }
 }
+
+
+
