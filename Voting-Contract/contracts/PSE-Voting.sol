@@ -68,12 +68,9 @@ contract PseVoting {
     function aggregateVotes(Vote[] memory _votes) internal view returns (Vote memory) {
         Vote memory aggregateVote;
 
-        aggregateVote.g_r = ck[0];
-        aggregateVote.g_mh_r = Pairing.add(ck[0], ck[1]);
-
         for (uint i = 0; i < _votes.length; i++) {
-            aggregateVote.g_r = Pairing.add(aggregateVote.g_r, _votes[i].g_r);
-            aggregateVote.g_mh_r = Pairing.add(aggregateVote.g_mh_r, _votes[i].g_mh_r);
+            aggregateVote.g_r = Pairing.plus(aggregateVote.g_r, _votes[i].g_r);
+            aggregateVote.g_mh_r = Pairing.plus(aggregateVote.g_mh_r, _votes[i].g_mh_r);
         }
         return aggregateVote;
     }
@@ -157,6 +154,15 @@ contract PseVoting {
         emit VoteSubmitted(_votingRoundNumber, sn, voteList);
     }
 
+    function getCk() external view returns (uint[] memory) {
+        uint[] memory ckArray = new uint[](4);
+        ckArray[0] = ck[0].X;
+        ckArray[1] = ck[0].Y;
+        ckArray[2] = ck[1].X;
+        ckArray[3] = ck[1].Y;
+        return ckArray;
+    }
+
     function getCandidates(uint _votingRoundCounter) external view returns (address[] memory) {
         return votingRounds[_votingRoundCounter].candidateAddresses;
     }
@@ -170,8 +176,8 @@ contract PseVoting {
         return (round.currentVotingRound, round.totalCandidate, round.root, round.voterAddresses.length, round.voterAddresses);
     }
 
-    function getAggregateVote(uint _votingRoundCounter, address _candidateAddress) external view returns (Pairing.G1Point memory, Pairing.G1Point memory) {
-        Vote memory aggregateVote = votingRounds[_votingRoundCounter].candidates[_candidateAddress].aggregateVote;
-        return (aggregateVote.g_r, aggregateVote.g_mh_r);
+    function getAggregateVote(uint _votingRoundCounter, uint candidatePos) external view returns (uint, uint) {
+        VotingRound storage round = votingRounds[_votingRoundCounter];
+        return (round.candidates[round.candidateAddresses[candidatePos]].aggregateVote.g_r.X, round.candidates[round.candidateAddresses[candidatePos]].aggregateVote.g_r.Y);
     }
 }

@@ -16,7 +16,7 @@ library Pairing {
   }
 
   /*
-   * @return The negation of p, i.e. p.add(p.negate()) should be zero.
+   * @return The negation of p, i.e. p.plus(p.negate()) should be zero.
    */
   function negate(G1Point memory p) internal pure returns (G1Point memory) {
     // The prime q in the base field F_q for G1
@@ -30,7 +30,7 @@ library Pairing {
   /*
    * @return r the sum of two points of G1
    */
-  function add(
+  function plus(
     G1Point memory p1,
     G1Point memory p2
   ) internal view returns (G1Point memory r) {
@@ -43,7 +43,7 @@ library Pairing {
 
     // solium-disable-next-line security/no-inline-assembly
     assembly {
-      success := staticcall(sub(gas(), 2000), 6, input, 0xc0, r, 0x60)
+      success := staticcall(gas(), 6, input, 0x80, r, 0x60)
     // Use "invalid" to make gas estimation work
       switch success case 0 { invalid() }
     }
@@ -53,10 +53,10 @@ library Pairing {
 
   /*
    * @return r the product of a point on G1 and a scalar, i.e.
-   *         p == p.mul(1) and p.add(p) == p.mul(2) for all
+   *         p == p.scalar_mul(1) and p.plus(p) == p.scalar_mul(2) for all
    *         points p.
    */
-  function mul(G1Point memory p, uint256 s) internal view returns (G1Point memory r) {
+  function scalar_mul(G1Point memory p, uint256 s) internal view returns (G1Point memory r) {
     uint256[3] memory input;
     input[0] = p.X;
     input[1] = p.Y;
@@ -64,7 +64,7 @@ library Pairing {
     bool success;
     // solium-disable-next-line security/no-inline-assembly
     assembly {
-      success := staticcall(sub(gas(), 2000), 7, input, 0x80, r, 0x60)
+      success := staticcall(gas(), 7, input, 0x60, r, 0x60)
     // Use "invalid" to make gas estimation work
       switch success case 0 { invalid() }
     }
@@ -76,7 +76,7 @@ library Pairing {
    *         For example,
    *         pairing([P1(), P1().negate()], [P2(), P2()]) should return true.
    */
-  function grothPairing(
+  function pairing(
     G1Point memory a1,
     G2Point memory a2,
     G1Point memory b1,
@@ -116,42 +116,4 @@ library Pairing {
 
     return out[0] != 0;
   }
-
-  function kzgPairing(
-        G1Point memory a1,
-        G2Point memory a2,
-        G1Point memory b1,
-        G2Point memory b2
-    ) internal view returns (bool) {
-
-        G1Point[2] memory p1 = [a1, b1];
-        G2Point[2] memory p2 = [a2, b2];
-
-        uint256 inputSize = 12;
-        uint256[] memory input = new uint256[](inputSize);
-
-        for (uint256 i = 0; i < 2; i++) {
-            uint256 j = i * 6;
-            input[j + 0] = p1[i].X;
-            input[j + 1] = p1[i].Y;
-            input[j + 2] = p2[i].X[0];
-            input[j + 3] = p2[i].X[1];
-            input[j + 4] = p2[i].Y[0];
-            input[j + 5] = p2[i].Y[1];
-        }
-
-        uint256[1] memory out;
-        bool success;
-
-        // solium-disable-next-line security/no-inline-assembly
-        assembly {
-            success := staticcall(sub(gas(), 2000), 8, add(input, 0x20), mul(inputSize, 0x20), out, 0x20)
-            // Use "invalid" to make gas estimation work
-            switch success case 0 { invalid() }
-        }
-
-        require(success, "pairing-opcode-failed");
-
-        return out[0] != 0;
-    }
 }
