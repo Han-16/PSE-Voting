@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "./Pairing.sol";
+import "./Bn128.sol";
+// import "./hardhat/console.sol";
 
 contract PseVoting {
     address public owner;
-    Pairing.G1Point[] ck;
+    Bn128.G1Point[] ck;
     
     uint candidateLimit;
     uint256[] vk;
@@ -19,8 +20,8 @@ contract PseVoting {
     }
 
     struct Vote {
-        Pairing.G1Point g_r;
-        Pairing.G1Point g_mh_r;
+        Bn128.G1Point g_r;
+        Bn128.G1Point g_mh_r;
     }
 
     struct VotingRound {
@@ -48,8 +49,8 @@ contract PseVoting {
         votingRoundCounter = 0;
         vk = _vk;
         candidateLimit = _candidateLimit;
-        Pairing.G1Point memory g = Pairing.G1Point(_ck[0], _ck[1]);
-        Pairing.G1Point memory h = Pairing.G1Point(_ck[2], _ck[3]);
+        Bn128.G1Point memory g = Bn128.G1Point(_ck[0], _ck[1]);
+        Bn128.G1Point memory h = Bn128.G1Point(_ck[2], _ck[3]);
         ck.push(g);
         ck.push(h);
     }
@@ -61,16 +62,18 @@ contract PseVoting {
 
     function proofVerify(uint[] memory _proof, uint[] memory _inputs) internal view returns (bool) {
         require(_proof.length == 10, "proof length must be 10");
-        require(_inputs.length == 2 + candidateLimit, "Invalid inputs length");
+        require(_inputs.length == 4 + candidateLimit, "Invalid inputs length");
         return true;
     }
 
     function aggregateVotes(Vote[] memory _votes) internal view returns (Vote memory) {
         Vote memory aggregateVote;
+        aggregateVote.g_r = _votes[0].g_r;
+        aggregateVote.g_mh_r = _votes[0].g_mh_r;
 
-        for (uint i = 0; i < _votes.length; i++) {
-            aggregateVote.g_r = Pairing.plus(aggregateVote.g_r, _votes[i].g_r);
-            aggregateVote.g_mh_r = Pairing.plus(aggregateVote.g_mh_r, _votes[i].g_mh_r);
+        for (uint i = 1; i < _votes.length; i++) {
+            aggregateVote.g_r = Bn128.add(aggregateVote.g_r, _votes[i].g_r);
+            aggregateVote.g_mh_r = Bn128.add(aggregateVote.g_mh_r, _votes[i].g_mh_r);
         }
         return aggregateVote;
     }
