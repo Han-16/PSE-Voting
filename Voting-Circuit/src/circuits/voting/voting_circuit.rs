@@ -205,6 +205,12 @@ where
         let mut rng = thread_rng();
         println!("ck: {:?}", ck.iter().map(|x| x.to_string()).collect::<Vec<String>>());
 
+        let p1 = C::rand(&mut rng).into_affine();
+        println!("p1: {:?}", p1.to_string());
+
+        let ck_sum = (ck[0] + ck[1]).into_affine();
+        println!("ck[0] + ck[1]: {:?}", ck_sum.to_string());
+
         // Generate the hash parameters
         let hash_params: PoseidonConfig<<<C as CurveGroup>::Affine as AffineRepr>::BaseField> = get_poseidon_params();
 

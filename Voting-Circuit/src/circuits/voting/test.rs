@@ -1,12 +1,13 @@
 #[cfg(test)]
 mod test {
     use ark_bn254::Bn254;
-    use ark_ec::AffineRepr;
+    use ark_ec::{AffineRepr, CurveGroup};
     use ark_ff::Field;
     use crate::circuits::voting::{voting_circuit::VotingCircuit, MockingCircuit};
     use ark_relations::r1cs::ConstraintSystem;
     use ark_groth16::Groth16;
     use ark_crypto_primitives::snark::SNARK;
+    use ark_r1cs_std::groups::curves::short_weierstrass::AffineVar;
     use crate::circuits::voting::parser::{get_ck, get_g, get_user, parse_user};
     use crate::circuits::voting::{
         setup::voting_setup,
@@ -15,18 +16,17 @@ mod test {
     
     type C = ark_ed_on_bn254::EdwardsProjective;
     type GG = ark_ed_on_bn254::constraints::EdwardsVar;
-
     type F = ark_bn254::Fr;
-
+    
 
     fn make_mocking_circuit() -> VotingCircuit<C, GG> {
         let tree_height = 10;       // constant
         let voting_round = 1;       // mutable
-        let num_of_candidates = 2; // mutable
-        let num_of_voters = 2;     // mutable
+        let num_of_candidates = 3; // mutable
+        let num_of_voters = 3;     // mutable
         let vote_index = 1;         // mutable  (num_of_candidates보다 작아야함)
-        let voter_pos = 1;          // mutable (Mock data에 addr이 0 ~ 9)까지 준비되어있음. num_of_voters보다 작아야함
-        let candidate_limit = 2;   // constant
+        let voter_pos = 2;          // mutable (Mock data에 addr이 0 ~ 9)까지 준비되어있음. num_of_voters보다 작아야함
+        let candidate_limit = 3;   // constant
         
         
         let g = get_g().unwrap();
@@ -52,6 +52,23 @@ mod test {
         test_circuit.clone().generate_constraints(cs.clone()).unwrap();
         println!("Number of constraints: {}", cs.num_constraints());
         assert!(cs.is_satisfied().unwrap());
+    }
+
+    #[test]
+    fn pick_bn128_point() {
+        use ark_std::test_rng;
+        use ark_bn254::G1Affine;
+        use ark_ff::UniformRand;
+        let mut rng = test_rng();
+
+        let p1 = G1Affine::rand(&mut rng);
+        let p2 = G1Affine::rand(&mut rng);
+        
+        let result = (p1 + p2).into_affine();
+    
+        println!("p1: {:?}", p1);
+        println!("p2: {:?}", p2);
+        println!("result: {:?}", result);
     }
 
 
@@ -120,18 +137,18 @@ mod test {
 // [
 //     [
 //         [
-//             11033567818275684919075409414965572079440635723229613164682361884895658975772, 481411362403504201447508112774593803602760479581675224881324297265530828000
+//             7002423165718862390085497292383722681186819064610927722206147313123556968176, 1158418138796569270227409703907560298194780201830254536705718434563959474250
 //         ], 
 //         [
-//             16955724471882459149810129443345563406537256917349110988888829087554591653765, 14200917651984717562329172401068559260002533199645482705628663576896616142061
+//             1648432218916581718736433422721440114484717793513633214439675109043745167507, 16252806229216206557842960347496532192895446003208121887189965450592401622307
 //         ]
 //     ],
 //     [
 //         [
-//             11212910480919613759821103829670285558249846784935520403521985325130665370736, 3009261360349294882390304634382566512115473377405587968582582965939927593015
+//             8162470543121127218496399265061141533628918683931781537562787518760810080332, 17574063265327651113532670727085148159901031970287820058245132483187161566352
 //         ],
 //         [
-//             9405646435127829239500635852624372803665573127309098866323303401372794688110, 11807384405777212140361874267048608283976813534510199002672246914609996440751
+//             21331332089127842605625988752397999957332325790147087438304646118286698234766, 18781616259708682926544928743402266418164030872090275689986131720542588831362
 //         ]
 //     ]
 // ]

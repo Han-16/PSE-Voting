@@ -71,6 +71,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ark-bn254"
+version = "0.4.0"
+source = "git+https://github.com/arkworks-rs/algebra#b33df5cce2d54cf4c9248e4b229c7d6708fa9375"
+dependencies = [
+ "ark-ec 0.4.2",
+ "ark-ff 0.4.2",
+ "ark-r1cs-std 0.4.0",
+ "ark-std 0.4.0",
+]
+
+[[package]]
 name = "ark-crypto-primitives"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -161,7 +172,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71892f265d01650e34988a546b37ea1d2ba1da162a639597a03d1550f26004d8"
 dependencies = [
- "ark-bn254",
+ "ark-bn254 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
  "ark-r1cs-std 0.4.0",
@@ -1251,7 +1262,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "voting"
 version = "0.1.0"
 dependencies = [
- "ark-bn254",
+ "ark-bn254 0.4.0 (git+https://github.com/arkworks-rs/algebra)",
  "ark-crypto-primitives 0.4.0",
  "ark-ec 0.4.2",
  "ark-ed-on-bls12-381",
@@ -1269,10 +1280,12 @@ dependencies = [
  "lazy_static",
  "libc",
  "num-bigint",
+ "num-traits",
  "rand",
  "rayon",
  "serde",
  "serde_json",
+ "sha2",
  "sha3",
  "tracing",
  "tracing-subscriber",

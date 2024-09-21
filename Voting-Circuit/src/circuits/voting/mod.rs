@@ -6,6 +6,7 @@ pub mod parser;
 pub mod prover;
 pub mod setup;
 pub mod key_utils;
+pub mod test_circuit;
 
 use ark_crypto_primitives::sponge::Absorb;
 use ark_ec::CurveGroup;

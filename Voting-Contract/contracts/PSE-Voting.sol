@@ -15,7 +15,7 @@ contract PseVoting {
         uint candidateNumber;
         address candidateAddress;
         string name;
-        Vote[] voteCount;
+        Vote[] VoteList;
         Vote aggregateVote;
     }
 
@@ -66,17 +66,21 @@ contract PseVoting {
         return true;
     }
 
-    function aggregateVotes(Vote[] memory _votes) internal view returns (Vote memory) {
-        Vote memory aggregateVote;
-        aggregateVote.g_r = _votes[0].g_r;
-        aggregateVote.g_mh_r = _votes[0].g_mh_r;
 
-        for (uint i = 1; i < _votes.length; i++) {
-            aggregateVote.g_r = Bn128.add(aggregateVote.g_r, _votes[i].g_r);
-            aggregateVote.g_mh_r = Bn128.add(aggregateVote.g_mh_r, _votes[i].g_mh_r);
+    function _aggregateCandidateVotes(Vote[] memory voteList) internal view returns (Vote memory) {
+        require(voteList.length > 0, "Vote list is empty");
+        
+        Bn128.G1Point memory _g_r = voteList[0].g_r;
+        Bn128.G1Point memory _g_mh_r = voteList[0].g_mh_r;
+
+        for (uint i = 1; i < voteList.length; i++) {
+            _g_r = Bn128.add(_g_r, voteList[i].g_r);
+            _g_mh_r = Bn128.add(_g_mh_r, voteList[i].g_mh_r);
         }
-        return aggregateVote;
+
+        return Vote(_g_r, _g_mh_r);
     }
+
 
     function createVotingRound() external onlyOwner {
         votingRoundCounter++;
@@ -108,8 +112,17 @@ contract PseVoting {
         VotingRound storage round = votingRounds[votingRoundNumber];
         require(round.votingOpen, "Voting is not open");
         round.votingOpen = false;
-        for (uint i = 0; i < round.candidateAddresses.length; i++) {
-            round.candidates[round.candidateAddresses[i]].aggregateVote = aggregateVotes(round.candidates[round.candidateAddresses[i]].voteCount);
+
+        Vote[] memory aggregatedVotes = new Vote[](round.totalCandidate);
+
+        for (uint i = 0; i < round.totalCandidate; i++) {
+            address candidateAddr = round.candidateAddresses[i];
+            aggregatedVotes[i] = _aggregateCandidateVotes(round.candidates[candidateAddr].VoteList);
+        }
+
+        for (uint i = 0; i < round.totalCandidate; i++) {
+            address candidateAddr = round.candidateAddresses[i];
+            round.candidates[candidateAddr].aggregateVote = aggregatedVotes[i];
         }
     }
 
@@ -145,13 +158,15 @@ contract PseVoting {
 
     function submitVote(uint _votingRoundNumber, uint sn, Vote[] memory voteList, uint[] memory proof, uint[] memory inputs) external {
         VotingRound storage round = votingRounds[_votingRoundNumber];
+        require(round.votingOpen, "Voting is not open");
         require(proofVerify(proof, inputs), "Invalid proof");
         require(!round.serialNumberUsed[sn], "Serial number already used");
+        require(round.totalCandidate == voteList.length, "Invalid vote list length");
         round.serialNumberUsed[sn] = true;
 
         for (uint i = 0; i < voteList.length; i++) {
-            address candidateAddress = round.candidateAddresses[i];
-            round.candidates[candidateAddress].voteCount.push(voteList[i]);
+            address candidateAddr = round.candidateAddresses[i];
+            round.candidates[candidateAddr].VoteList.push(voteList[i]);
         }
 
         emit VoteSubmitted(_votingRoundNumber, sn, voteList);
@@ -179,8 +194,27 @@ contract PseVoting {
         return (round.currentVotingRound, round.totalCandidate, round.root, round.voterAddresses.length, round.voterAddresses);
     }
 
-    function getAggregateVote(uint _votingRoundCounter, uint candidatePos) external view returns (uint, uint) {
+    function getAggregateVote(uint _votingRoundCounter, uint candidateNumber) external view returns (Vote memory) {
         VotingRound storage round = votingRounds[_votingRoundCounter];
-        return (round.candidates[round.candidateAddresses[candidatePos]].aggregateVote.g_r.X, round.candidates[round.candidateAddresses[candidatePos]].aggregateVote.g_r.Y);
+        Candidate storage candidate = round.candidates[round.candidateAddresses[candidateNumber]];
+        return candidate.aggregateVote;
+    }
+
+    function getCandidateInfo(uint _votingRoundCounter, uint candidateNumber) external view returns (address, string memory, uint, Vote memory) {
+        VotingRound storage round = votingRounds[_votingRoundCounter];
+        Candidate storage candidate = round.candidates[round.candidateAddresses[candidateNumber]];
+        return (candidate.candidateAddress, candidate.name, candidate.VoteList.length, candidate.aggregateVote);
+    }
+
+    function getCandidateVoteList(uint _votingRoundCounter, uint candidateNumber) external view returns (Vote[] memory) {
+        VotingRound storage round = votingRounds[_votingRoundCounter];
+        Candidate storage candidate = round.candidates[round.candidateAddresses[candidateNumber]];
+        return candidate.VoteList;
+    }
+
+    function getCandidateVoteListLength(uint _votingRoundCounter, uint candidateNumber) external view returns (uint) {
+        VotingRound storage round = votingRounds[_votingRoundCounter];
+        Candidate storage candidate = round.candidates[round.candidateAddresses[candidateNumber]];
+        return candidate.VoteList.length;
     }
 }
