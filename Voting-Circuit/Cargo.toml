@@ -7,7 +7,8 @@ edition = "2021"
 
 [dependencies]
 rayon = "1.10.0"
-ark-bn254 = { git = "https://github.com/arkworks-rs/algebra", package = "ark-bn254", features = ["r1cs"] }
+# ark-bn254 = { git = "https://github.com/arkworks-rs/algebra", package = "ark-bn254", features = ["r1cs"] }
+ark-bn254 = "0.4.0"
 ark-ed-on-bn254 = { version = "^0.4.0", features = ["r1cs"] }
 ark-crypto-primitives = { version = "0.4.0", default-features = true, features = [
     "r1cs",
